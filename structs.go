@@ -3,6 +3,7 @@ package structs
 
 import (
 	"fmt"
+	"unicode"
 
 	"reflect"
 )
@@ -11,7 +12,7 @@ var (
 	// DefaultTagName is the default tag name for struct fields which provides
 	// a more granular to tweak certain structs. Lookup the necessary functions
 	// for more info.
-	DefaultTagName = "structs" // struct's field default tag name
+	DefaultTagName = "json" // struct's field default tag name
 )
 
 // Struct encapsulates a struct type to provide several high level functions
@@ -166,13 +167,13 @@ func (s *Struct) FillMapWithFields(out map[string]interface{}, fieldNames []stri
 
 	filedNameMap := make(map[string]int)
 	for _,name := range fieldNames {
-		filedNameMap[name] = 1
+		filedNameMap[s.StringUpperFirstChar(name)] = 1
 	}
 
 	for _, field := range fields {
 		name := field.Name
 
-		if _, ok := filedNameMap[name]; ok {
+		if _, ok := filedNameMap[name]; !ok {
 			continue
 		}
 
@@ -228,6 +229,13 @@ func (s *Struct) FillMapWithFields(out map[string]interface{}, fieldNames []stri
 			out[name] = finalVal
 		}
 	}
+}
+// 首字母 => 大写
+func (s *Struct)StringUpperFirstChar(str string) string {
+	for i, v := range str {
+		return string(unicode.ToUpper(v)) + str[i+1:]
+	}
+	return ""
 }
 
 // Values converts the given s struct's field values to a []interface{}.  A

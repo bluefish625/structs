@@ -58,9 +58,9 @@ func ExampleMap() {
 func ExampleMap_tags() {
 	// Custom tags can change the map keys instead of using the fields name
 	type Server struct {
-		Name    string `structs:"server_name"`
-		ID      int32  `structs:"server_id"`
-		Enabled bool   `structs:"enabled"`
+		Name    string `json:"server_name"`
+		ID      int32  `json:"server_id"`
+		Enabled bool   `json:"enabled"`
 	}
 
 	s := &Server{
@@ -68,7 +68,7 @@ func ExampleMap_tags() {
 		ID:   789012,
 	}
 
-	m := Map(s)
+	m := MapWithFields(s, []string{"id", "name"})
 
 	// access them by the custom tags defined above
 	fmt.Printf("%#v\n", m["server_name"])
