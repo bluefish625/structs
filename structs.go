@@ -84,6 +84,12 @@ func (s *Struct) Map() map[string]interface{} {
 	return out
 }
 
+func (s *Struct) MapWithFields(fieldNames []string) map[string]interface{} {
+	out := make(map[string]interface{})
+	s.FillMapWithFields(out, fieldNames)
+	return out
+}
+
 // FillMap is the same as Map. Instead of returning the output, it fills the
 // given map.
 func (s *Struct) FillMap(out map[string]interface{}) {
@@ -95,6 +101,81 @@ func (s *Struct) FillMap(out map[string]interface{}) {
 
 	for _, field := range fields {
 		name := field.Name
+		val := s.value.FieldByName(name)
+		isSubStruct := false
+		var finalVal interface{}
+
+		tagName, tagOpts := parseTag(field.Tag.Get(s.TagName))
+		if tagName != "" {
+			name = tagName
+		}
+
+		// if the value is a zero value and the field is marked as omitempty do
+		// not include
+		if tagOpts.Has("omitempty") {
+			zero := reflect.Zero(val.Type()).Interface()
+			current := val.Interface()
+
+			if reflect.DeepEqual(current, zero) {
+				continue
+			}
+		}
+
+		if !tagOpts.Has("omitnested") {
+			finalVal = s.nested(val)
+
+			v := reflect.ValueOf(val.Interface())
+			if v.Kind() == reflect.Ptr {
+				v = v.Elem()
+			}
+
+			switch v.Kind() {
+			case reflect.Map, reflect.Struct:
+				isSubStruct = true
+			}
+		} else {
+			finalVal = val.Interface()
+		}
+
+		if tagOpts.Has("string") {
+			s, ok := val.Interface().(fmt.Stringer)
+			if ok {
+				out[name] = s.String()
+			}
+			continue
+		}
+
+		if isSubStruct && (tagOpts.Has("flatten")) {
+			for k := range finalVal.(map[string]interface{}) {
+				out[k] = finalVal.(map[string]interface{})[k]
+			}
+		} else {
+			out[name] = finalVal
+		}
+	}
+}
+
+// FillMap is the same as Map. Instead of returning the output, it fills the
+// given map.
+func (s *Struct) FillMapWithFields(out map[string]interface{}, fieldNames []string) {
+	if out == nil {
+		return
+	}
+
+	fields := s.structFields()
+
+	filedNameMap := make(map[string]int)
+	for _,name := range fieldNames {
+		filedNameMap[name] = 1
+	}
+
+	for _, field := range fields {
+		name := field.Name
+
+		if _, ok := filedNameMap[name]; ok {
+			continue
+		}
+
 		val := s.value.FieldByName(name)
 		isSubStruct := false
 		var finalVal interface{}
@@ -444,6 +525,10 @@ func strctVal(s interface{}) reflect.Value {
 // refer to Struct types Map() method. It panics if s's kind is not struct.
 func Map(s interface{}) map[string]interface{} {
 	return New(s).Map()
+}
+
+func MapWithFields(s interface{}, fieldNames []string) map[string]interface{} {
+	return New(s).MapWithFields(fieldNames)
 }
 
 // FillMap is the same as Map. Instead of returning the output, it fills the
